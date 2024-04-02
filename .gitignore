@@ -1,0 +1,6 @@
+.vscode/
+ABO_imgs_6views/
+PointCloud_pt_zips/
+RenderedImage_perobj_zips/
+__pycache__/
+blender-3.4.1-linux-x64/
