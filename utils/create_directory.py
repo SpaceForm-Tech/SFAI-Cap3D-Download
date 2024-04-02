@@ -22,7 +22,7 @@ def create_directory(
     is_directory: Optional[bool] = False,
     logger: Optional[logging.Logger] = None,
     debug_logging: Optional[bool] = False,
-) -> None:
+) -> bool:
     """
     Create directory for the given file or directory path if it doesn't exist.
 
@@ -31,7 +31,12 @@ def create_directory(
         is_directory (Optional[bool]): Flag to indicate wether destination is file path or directory path.
         logger (Optional[logging.Logger]): Logger instance for logging. If not provided, a new one will be created.
         debug_logging (Optional[bool]): Flag to toggle debug logging. Default is False.
+
+    Returns:
+        bool: True if directory was created, False if directory already existed.
     """
+    directory_created = False
+
     if not logger or not logger.hasHandlers():
         logging.basicConfig(
             level=logging.DEBUG if debug_logging else logging.INFO,
@@ -57,6 +62,7 @@ def create_directory(
             logger.debug("Creating directory: %s", directory)
             os.makedirs(directory)
             logger.debug("Created directory: %s", directory)
+            directory_created = True
 
         else:
             logger.debug("Directory already exists: %s", directory)
@@ -72,6 +78,8 @@ def create_directory(
             "Error while creating directory for file '%s': %s", absolute_path, str(e)
         )
         raise
+
+    return directory_created
 
 
 def main() -> None:
@@ -90,7 +98,8 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    create_directory(args.destination, args.debug_logging)
+    directory_created = create_directory(args.destination, args.debug_logging)
+    print(f"Directory created: {directory_created}")
 
 
 if __name__ == "__main__":

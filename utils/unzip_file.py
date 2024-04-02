@@ -12,21 +12,23 @@ Example:
 """
 
 import argparse
+import concurrent.futures
 import logging
 import os
 import zipfile
 from typing import Optional
 
 from create_directory import create_directory
+from logger_config import setup_logger
 from tqdm import tqdm
 
 
 def extract_zip_file_recursive(
     zip_file: str,
     extract_to: str,
+    current_recursion_depth: int,
     track_extraction: Optional[bool] = False,
     max_recursion_depth: Optional[int] = 1,
-    current_recursion_depth: Optional[int] = -1,
     logger: Optional[logging.Logger] = None,
     debug_logging: Optional[bool] = False,
 ) -> None:
@@ -36,9 +38,9 @@ def extract_zip_file_recursive(
     Args:
         zip_file (str): Path to the zip file to be extracted.
         extract_to (str): Path to the directory where zip file contents will be extracted to.
+        current_recursion_depth (int): Current recursion depth. A value of -1 should be passed as default.
         track_extraction (Optional[bool]): Flag to toggle zipfile extraction tracking in the console. Default is False.
         max_recursion_depth (Optional[int]): Maximum number of recursions before raising an error. Default is 1.
-        current_recursion_depth (Optional[int]): Current recursion depth. Default is 0.
         logger (Optional[logging.Logger]): Logger instance for logging. If not provided, a new one will be created.
         debug_logging (Optional[bool]): Flag to toggle debug logging. Default is False.
 
@@ -71,16 +73,18 @@ def extract_zip_file_recursive(
     if not os.path.exists(absolute_zip_file_path):
         raise FileNotFoundError(f"Zip file not found: '{absolute_zip_file_path}'")
 
-    create_directory(
+    directory_created = create_directory(
         destination=extract_to,
         is_directory=True,
         logger=logger,
         debug_logging=debug_logging,
     )
+    # already_extracted = False if current_recursion_depth < 1 else not directory_created
+
     absolute_extract_to_path = os.path.abspath(extract_to)
     try:
         with zipfile.ZipFile(absolute_zip_file_path, "r") as zip_ref:
-            name_list = zip_ref.namelist()
+            name_list = zip_ref.namelist()  # Names of files in zip archive
             total_files = len(name_list)
             logger.log(
                 logging.DEBUG if debug_logging else logging.INFO,
@@ -98,12 +102,14 @@ def extract_zip_file_recursive(
 
                         pbar.update(1)
 
+                        # if not already_extracted:
                         extract(
                             zip_ref=zip_ref,
                             file_info=file_info,
                             extract_to=extract_to,
                             current_recursion_depth=current_recursion_depth,
                             max_recursion_depth=max_recursion_depth,
+                            logger=logger,
                             debug_logging=(
                                 True
                                 if current_recursion_depth >= 1 or track_extraction
@@ -113,12 +119,14 @@ def extract_zip_file_recursive(
 
             else:
                 for file_info in zip_ref.infolist():
+                    # if not already_extracted:
                     extract(
                         zip_ref=zip_ref,
                         file_info=file_info,
                         extract_to=extract_to,
                         current_recursion_depth=current_recursion_depth,
                         max_recursion_depth=max_recursion_depth,
+                        logger=logger,
                         debug_logging=(
                             True if current_recursion_depth >= 1 else debug_logging
                         ),
@@ -128,9 +136,13 @@ def extract_zip_file_recursive(
         logger.exception("Invalid zip file: '%s'", absolute_zip_file_path)
         raise
 
+    # Delete the zip file after successful extraction
+    if current_recursion_depth >= 1:
+        os.remove(zip_file)
+
     logger.log(
         logging.DEBUG if debug_logging else logging.INFO,
-        "Unzipping file process successfully completed with zip file: '%s' extracted to: '%s'",
+        "Zip file extraction and deletion process has successfully completed (zip file: '%s' extracted to: '%s')",
         absolute_zip_file_path,
         absolute_extract_to_path,
     )
@@ -142,6 +154,7 @@ def extract(
     extract_to: str,
     current_recursion_depth: int,
     max_recursion_depth: int,
+    logger: logging.Logger,
     debug_logging: bool,
 ) -> None:
     """
@@ -153,45 +166,43 @@ def extract(
         extract_to (str): Path to the directory where the file will be extracted to.
         current_recursion_depth (int): Current recursion depth.
         max_recursion_depth (int): Maximum recursion depth.
+        logger (logging.Logger): Logger instance for logging.
         debug_logging (bool): Flag to toggle debug logging.
     """
     zip_ref.extract(file_info, extract_to)
 
-    # Extract nested zip files recursively
-    for item in zip_ref.namelist():
-        item_path = os.path.join(extract_to, item)
-        if item.endswith(".zip") and zipfile.is_zipfile(item_path):
-            assert (
-                current_recursion_depth <= max_recursion_depth
-            ), f"Maximum recursion limit reached ({max_recursion_depth})."
-            nested_extract_to = os.path.join(extract_to, os.path.splitext(item)[0])
-            os.makedirs(nested_extract_to, exist_ok=True)
-            extract_zip_file_recursive(
-                zip_file=item_path,
-                extract_to=nested_extract_to,
-                track_extraction=False,
-                max_recursion_depth=max_recursion_depth,
-                debug_logging=debug_logging,
-            )
+    # Extract nested zip files concurrently and recursively
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = []
+        for item in zip_ref.namelist():
+            item_path = os.path.join(extract_to, item)
+            if item.endswith(".zip") and zipfile.is_zipfile(item_path):
+                assert (
+                    current_recursion_depth <= max_recursion_depth
+                ), f"Maximum recursion limit reached ({max_recursion_depth})."
 
+                nested_extract_to = os.path.join(extract_to, os.path.splitext(item)[0])
+                os.makedirs(nested_extract_to, exist_ok=True)
 
-# def parallel_extract_zip_file(
-#     zip_file: str,
-#     extract_to: str,
-#     track_extraction: bool,
-#     max_recursion_depth: int,
-#     debug_logging: bool,
-# ):
-#     """
-#     Function to be used with multiprocessing.Pool for parallel extraction.
-#     """
-#     try:
-#         extract_zip_file_recursive(
-#             zip_file, extract_to, track_extraction, max_recursion_depth, debug_logging
-#         )
+                futures.append(
+                    executor.submit(
+                        extract_zip_file_recursive,
+                        item_path,
+                        nested_extract_to,
+                        current_recursion_depth + 1,
+                        False,
+                        max_recursion_depth,
+                        logger,
+                        debug_logging,
+                    )
+                )
 
-#     except Exception as e:
-#         logging.error("Error extracting '%s': %s", zip_file, str(e))
+        # Wait for all tasks to complete
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                logger.error("Error occurred: %s", e)
 
 
 def main() -> None:
@@ -228,6 +239,18 @@ def main() -> None:
         default=False,
         help="Flag to toggle debug logging.",
     )
+    parser.add_argument(
+        "--stream_log",
+        type=bool,
+        default=True,
+        help="Stream log outputs to console",
+    )
+    parser.add_argument(
+        "--file_log",
+        type=bool,
+        default=True,
+        help="Log outputs to file",
+    )
 
     args = parser.parse_args()
 
@@ -236,17 +259,23 @@ def main() -> None:
     track_extraction = args.track_extraction
     max_recursion_depth = args.max_recursion_depth
     debug_logging = args.debug_logging
-    # processes = args.processes
+    stream_log = args.stream_log
+    file_log = args.file_log
 
-    if not os.path.exists(zip_file):
-        print(f"Error: Zip file '{zip_file}' not found.")
-        return
+    # Set up logging
+    logger = setup_logger(
+        destination=zip_file,
+        log_to_stream=stream_log,
+        log_to_file=file_log,
+    )
 
     extract_zip_file_recursive(
         zip_file=zip_file,
         extract_to=extract_to,
+        current_recursion_depth=-1,
         track_extraction=track_extraction,
         max_recursion_depth=max_recursion_depth,
+        logger=logger,
         debug_logging=debug_logging,
     )
 
