@@ -4,3 +4,8 @@ PointCloud_pt_zips/
 RenderedImage_perobj_zips/
 __pycache__/
 blender-3.4.1-linux-x64/
+Cap3D_automated_Objaverse_allviews.pkl
+Cap3D_human_ABO.pkl
+Cap3D_human_Objaverse.pkl
+blender.zip
+compressed_imgs_ABO.zip
