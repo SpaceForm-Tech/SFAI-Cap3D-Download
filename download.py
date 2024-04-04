@@ -4,19 +4,10 @@ This module provides functionality for downloading files with a retry mechanism 
 It includes a function `download_file_with_retry` for downloading a file from a given URL with a retry mechanism,
 and a `main` function for handling command line arguments and starting the download process.
 
-Dependencies:
-    - argparse
-    - logging
-    - os
-    - sys
-    - time
-    - requests
-    - tqdm
-
 Usage:
     Run this module from the command line with appropriate arguments to download files with retry mechanism.
     Example:
-        python download_manager.py http://example.com/file.zip ./output/file.zip --chunk_size 4096 --max_retries 5 --retry_delay 30
+        python download_manager.py http://example.com/file.zip ./output/file.zip --stream_log --file_log --unzip --track_extraction --chunk_size 8192 --max_retries 5 --retry_delay 30 --timeout 60
 """
 
 import argparse
@@ -24,6 +15,7 @@ import logging
 import os
 import sys
 import time
+from typing import Dict
 
 import requests
 from tqdm import tqdm
@@ -44,7 +36,7 @@ def download_file_with_retry(
     max_retries: int = int(1e6),
     retry_delay: int = 60,
     timeout: int = 60,
-):
+) -> bool:
     """
     Download a file from a given URL with retry mechanism.
 
@@ -58,15 +50,21 @@ def download_file_with_retry(
         timeout (int, optional): Maximum waiting time for server response in seconds. Default is 60.
 
     Returns:
-        bool: True if the download is successful, False otherwise.
+        bool: True if the download is successful or already completed, False otherwise.
     """
-    retry_count = 0
-    resume_header = {}
-    downloaded_bytes = 0  # Track downloaded bytes across retries
+    logger.info(
+        "Download file process initiated (url: '%s', destination: '%s')",
+        url,
+        destination,
+    )
+
+    retry_count: int = 0
+    resume_header: Dict[str, str] = {}
+    downloaded_bytes: int = 0  # Track downloaded bytes across retries
 
     if os.path.exists(destination):
-        resume_header["Range"] = f"bytes={os.path.getsize(destination)}-"
         downloaded_bytes = os.path.getsize(destination)
+        resume_header["Range"] = f"bytes={downloaded_bytes}-"
 
     while retry_count < max_retries:
         try:
@@ -76,7 +74,7 @@ def download_file_with_retry(
                 # Raise exception if status code is anything other than 200
                 response.raise_for_status()
 
-                file_size = int(response.headers.get("content-length", 0))
+                file_size: int = int(response.headers.get("content-length", 0))
 
                 # Write to file in "append binary" mode ("ab")
                 with open(destination, "ab") as file, tqdm(
@@ -95,12 +93,33 @@ def download_file_with_retry(
                         else:
                             logger.warning("Empty chunk")
 
-            logger.info("Download complete!")
+            logger.info(
+                "Download file process successfully completed (url: '%s', destination: '%s')",
+                url,
+                destination,
+            )
 
             return True
 
+        except requests.exceptions.HTTPError as http_e:
+            if response.status_code == 416:
+                logger.info(
+                    "(416 Range Not Satisfiable) The file has already been fully downloaded. (Error: %s)",
+                    http_e,
+                )
+
+                return True
+
+            else:
+                raise
+
         except requests.exceptions.RequestException as e:
-            logger.error("Error occurred: %s", e)
+            logger.error(
+                "An error occurred during the download file process: %s (url: '%s', destination: '%s')",
+                e,
+                url,
+                destination,
+            )
 
             retry_count += 1
             logger.warning(
@@ -133,13 +152,13 @@ def main():
     parser.add_argument(
         "--max_retries",
         type=int,
-        default=1e9,
+        default=int(1e6),
         help="Maximum number of retry attempts upon failure",
     )
     parser.add_argument(
         "--retry_delay",
         type=int,
-        default=60,
+        default=10,
         help="Delay between retry attempts in seconds",
     )
     parser.add_argument(
@@ -150,26 +169,22 @@ def main():
     )
     parser.add_argument(
         "--stream_log",
-        type=bool,
-        default=True,
+        action="store_true",
         help="Stream log outputs to console",
     )
     parser.add_argument(
         "--file_log",
-        type=bool,
-        default=True,
+        action="store_true",
         help="Log outputs to file",
     )
     parser.add_argument(
         "--unzip",
-        type=bool,
-        default=True,
+        action="store_true",
         help="Unzip file after download",
     )
     parser.add_argument(
         "--track_extraction",
-        type=bool,
-        default=True,
+        action="store_true",
         help="Flag to toggle zipfile extraction tracking in the console.",
     )
     parser.add_argument(
@@ -180,36 +195,36 @@ def main():
     )
     parser.add_argument(
         "--debug_logging",
-        type=bool,
-        default=False,
+        action="store_true",
         help="Flag to toggle debug logging.",
     )
 
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
+    print(f"args: {args}")
 
-    url = args.url
-    destination = args.destination
-    chunk_size = args.chunk_size
-    max_retries = args.max_retries
-    retry_delay = args.retry_delay
-    timeout = args.timeout
-    stream_log = args.stream_log
-    file_log = args.file_log
-    unzip = args.unzip
-    track_extraction = args.track_extraction
-    max_recursion_depth = args.max_recursion_depth
-    debug_logging = args.debug_logging
+    url: str = args.url
+    destination: str = args.destination
+    chunk_size: int = args.chunk_size
+    max_retries: int = args.max_retries
+    retry_delay: int = args.retry_delay
+    timeout: int = args.timeout
+    stream_log: bool = args.stream_log
+    file_log: bool = args.file_log
+    unzip: bool = args.unzip
+    track_extraction: bool = args.track_extraction
+    max_recursion_depth: int = args.max_recursion_depth
+    debug_logging: int = args.debug_logging
 
-    pointer_file_url = url.replace("resolve", "raw").split("?")[0]
+    pointer_file_url: str = url.replace("resolve", "raw").split("?")[0]
 
     # Set up logging
-    logger = setup_logger(
+    logger: logging.Logger = setup_logger(
         destination=destination,
         log_to_stream=stream_log,
         log_to_file=file_log,
     )
 
-    download_file_with_retry(
+    _: bool = download_file_with_retry(
         logger=logger,
         url=url,
         destination=destination,
