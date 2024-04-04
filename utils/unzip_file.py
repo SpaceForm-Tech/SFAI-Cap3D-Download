@@ -9,6 +9,8 @@ Example:
     
     $ python unzip.py example.zip output
 
+TODO:
+    - Implement already extracted logic (see commented code)
 """
 
 import argparse
@@ -20,7 +22,8 @@ from typing import Optional
 
 from tqdm import tqdm
 
-from .create_directory import create_directory
+from utils.create_directory import create_directory
+
 from .logger_config import setup_logger
 
 
