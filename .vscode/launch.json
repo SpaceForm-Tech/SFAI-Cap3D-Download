@@ -7,8 +7,8 @@
             "program": "${file}",
             "python": "python",
             "args": [
-                "RenderedImage_perobj_zips/compressed_imgs_perobj_00.zip",
-                "RenderedImage_perobj_zips/compressed_imgs_perobj_00"
+                "RenderedImage_perobj_zips/compressed_imgs_perobj_51.zip",
+                "RenderedImage_perobj_zips/compressed_imgs_perobj_51"
             ]
         },
         {

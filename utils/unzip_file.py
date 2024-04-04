@@ -18,9 +18,10 @@ import os
 import zipfile
 from typing import Optional
 
-from create_directory import create_directory
-from logger_config import setup_logger
 from tqdm import tqdm
+
+from .create_directory import create_directory
+from .logger_config import setup_logger
 
 
 def extract_zip_file_recursive(

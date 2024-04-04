@@ -19,7 +19,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from create_directory import create_directory
+from .create_directory import create_directory
 
 
 def setup_logger(
