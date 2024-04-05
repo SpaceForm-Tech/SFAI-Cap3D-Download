@@ -7,7 +7,7 @@ and a `main` function for handling command line arguments and starting the downl
 Usage:
     Run this module from the command line with appropriate arguments to download files with retry mechanism.
     Example:
-        python download_manager.py http://example.com/file.zip ./output/file.zip --stream_log --file_log --unzip --track_extraction --chunk_size 8192 --max_retries 5 --retry_delay 30 --timeout 60
+        python download.py http://example.com/file.zip ./output/file.zip --stream_log --file_log --unzip --track_extraction --chunk_size 8192 --max_retries 5 --retry_delay 30 --timeout 60
 """
 
 import argparse
@@ -15,6 +15,7 @@ import logging
 import os
 import sys
 import time
+import traceback
 from typing import Dict
 
 import requests
@@ -88,15 +89,16 @@ def download_file_with_retry(
                     for chunk in response.iter_content(chunk_size=chunk_size):
                         if chunk:
                             file.write(chunk)
-                            progress_bar.update(len(chunk))
-                            downloaded_bytes += len(chunk)  # Update downloaded bytes
+                            chunk_length: int = len(chunk)
+                            progress_bar.update(chunk_length)
+                            downloaded_bytes += chunk_length
                         else:
                             logger.warning("Empty chunk")
 
             logger.info(
                 "Download file process successfully completed (url: '%s', destination: '%s')",
                 url,
-                destination,
+                os.path.abspath(destination),
             )
 
             return True
@@ -130,131 +132,151 @@ def download_file_with_retry(
                 logger.warning("Retrying download in %s seconds...", retry_delay)
                 time.sleep(retry_delay)
 
+            # Calculate resume_header for the next retry attempt
+            if os.path.exists(destination):
+                downloaded_bytes = os.path.getsize(destination)
+                resume_header["Range"] = f"bytes={downloaded_bytes}-"
+
     logger.warning("Max retries (%s) reached. Download terminated.", max_retries)
 
     return False
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Download a file with retry mechanism."
-    )
-    parser.add_argument("url", type=str, help="URL of the file to download")
-    parser.add_argument(
-        "destination", type=str, help="Destination path to save the file"
-    )
-    parser.add_argument(
-        "--chunk_size",
-        type=int,
-        default=8192,
-        help="Size of each download chunk in bytes",
-    )
-    parser.add_argument(
-        "--max_retries",
-        type=int,
-        default=int(1e6),
-        help="Maximum number of retry attempts upon failure",
-    )
-    parser.add_argument(
-        "--retry_delay",
-        type=int,
-        default=10,
-        help="Delay between retry attempts in seconds",
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=60,
-        help="Maximum waiting time for server response in seconds",
-    )
-    parser.add_argument(
-        "--stream_log",
-        action="store_true",
-        help="Stream log outputs to console",
-    )
-    parser.add_argument(
-        "--file_log",
-        action="store_true",
-        help="Log outputs to file",
-    )
-    parser.add_argument(
-        "--unzip",
-        action="store_true",
-        help="Unzip file after download",
-    )
-    parser.add_argument(
-        "--track_extraction",
-        action="store_true",
-        help="Flag to toggle zipfile extraction tracking in the console.",
-    )
-    parser.add_argument(
-        "--max_recursion_depth",
-        type=int,
-        default=1,
-        help="Maximum number of recursions before raising an error.",
-    )
-    parser.add_argument(
-        "--debug_logging",
-        action="store_true",
-        help="Flag to toggle debug logging.",
-    )
-
-    args: argparse.Namespace = parser.parse_args()
-    print(f"args: {args}")
-
-    url: str = args.url
-    destination: str = args.destination
-    chunk_size: int = args.chunk_size
-    max_retries: int = args.max_retries
-    retry_delay: int = args.retry_delay
-    timeout: int = args.timeout
-    stream_log: bool = args.stream_log
-    file_log: bool = args.file_log
-    unzip: bool = args.unzip
-    track_extraction: bool = args.track_extraction
-    max_recursion_depth: int = args.max_recursion_depth
-    debug_logging: int = args.debug_logging
-
-    pointer_file_url: str = url.replace("resolve", "raw").split("?")[0]
-
-    # Set up logging
-    logger: logging.Logger = setup_logger(
-        destination=destination,
-        log_to_stream=stream_log,
-        log_to_file=file_log,
-    )
-
-    _: bool = download_file_with_retry(
-        logger=logger,
-        url=url,
-        destination=destination,
-        chunk_size=chunk_size,
-        max_retries=max_retries,
-        retry_delay=retry_delay,
-        timeout=timeout,
-    )
-
-    logger.info("Checksum process initiated for file: '%s'", destination)
-    if perform_checksum(
-        file_path=destination, pointer_file_url=pointer_file_url, logger=logger
-    ):
-        logger.info(
-            "Checksum process successfully completed for file: '%s'", destination
+    try:
+        parser = argparse.ArgumentParser(
+            description="Download a file with retry mechanism."
+        )
+        parser.add_argument("url", type=str, help="URL of the file to download")
+        parser.add_argument(
+            "destination", type=str, help="Destination path to save the file"
+        )
+        parser.add_argument(
+            "--chunk_size",
+            type=int,
+            default=8192,
+            help="Size of each download chunk in bytes",
+        )
+        parser.add_argument(
+            "--max_retries",
+            type=int,
+            default=int(1e6),
+            help="Maximum number of retry attempts upon failure",
+        )
+        parser.add_argument(
+            "--retry_delay",
+            type=int,
+            default=10,
+            help="Delay between retry attempts in seconds",
+        )
+        parser.add_argument(
+            "--timeout",
+            type=int,
+            default=60,
+            help="Maximum waiting time for server response in seconds",
+        )
+        parser.add_argument(
+            "--stream_log",
+            action="store_true",
+            help="Stream log outputs to console",
+        )
+        parser.add_argument(
+            "--file_log",
+            action="store_true",
+            help="Log outputs to file",
+        )
+        parser.add_argument(
+            "--unzip",
+            action="store_true",
+            help="Unzip file after download",
+        )
+        parser.add_argument(
+            "--track_extraction",
+            action="store_true",
+            help="Flag to toggle zipfile extraction tracking in the console.",
+        )
+        parser.add_argument(
+            "--max_recursion_depth",
+            type=int,
+            default=1,
+            help="Maximum number of recursions before raising an error.",
+        )
+        parser.add_argument(
+            "--debug_logging",
+            action="store_true",
+            help="Flag to toggle debug logging.",
         )
 
-    else:
-        raise Exception("Checksum process failed for file: '%s'", destination)
+        args: argparse.Namespace = parser.parse_args()
+        print(f"args: {args}")
 
-    if unzip:
-        extract_zip_file_recursive(
-            zip_file=destination,
-            extract_to=destination.replace(".zip", ""),
-            current_recursion_depth=-1,
-            track_extraction=track_extraction,
-            max_recursion_depth=max_recursion_depth,
+        url: str = args.url
+        destination: str = args.destination
+        chunk_size: int = args.chunk_size
+        max_retries: int = args.max_retries
+        retry_delay: int = args.retry_delay
+        timeout: int = args.timeout
+        stream_log: bool = args.stream_log
+        file_log: bool = args.file_log
+        unzip: bool = args.unzip
+        track_extraction: bool = args.track_extraction
+        max_recursion_depth: int = args.max_recursion_depth
+        debug_logging: int = args.debug_logging
+
+        pointer_file_url: str = url.replace("resolve", "raw").split("?")[0]
+
+        # Set up logging
+        logger: logging.Logger = setup_logger(
+            destination=destination,
+            log_to_stream=stream_log,
+            log_to_file=file_log,
+        )
+
+        download_succeeded: bool = download_file_with_retry(
             logger=logger,
-            debug_logging=debug_logging,
+            url=url,
+            destination=destination,
+            chunk_size=chunk_size,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            timeout=timeout,
         )
+
+        if download_succeeded:
+            logger.info("Checksum process initiated for file: '%s'", destination)
+            if perform_checksum(
+                file_path=destination, pointer_file_url=pointer_file_url, logger=logger
+            ):
+                logger.info(
+                    "Checksum process successfully completed for file: '%s'",
+                    destination,
+                )
+
+            else:
+                raise Exception("Checksum process failed for file: '%s'", destination)
+
+            if unzip:
+                extract_zip_file_recursive(
+                    zip_file=destination,
+                    extract_to=destination.replace(".zip", ""),
+                    current_recursion_depth=-1,
+                    track_extraction=track_extraction,
+                    max_recursion_depth=max_recursion_depth,
+                    logger=logger,
+                    debug_logging=debug_logging,
+                )
+
+    except KeyboardInterrupt:
+        logger.warning("Keyboard interrupt received. Exiting gracefully.")
+
+    except Exception as e:
+        # Log the exception traceback
+        traceback_str = traceback.format_exc()
+        logger.error("An unexpected error occurred: %s", e)
+        logger.error("Traceback: %s", traceback_str)
+
+        # Gracefully exit with an appropriate error message
+        sys.exit("Exiting due to an unexpected error.")
 
 
 if __name__ == "__main__":
