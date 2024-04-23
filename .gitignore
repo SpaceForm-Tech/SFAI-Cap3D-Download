@@ -1,5 +1,7 @@
-.vscode/
+# .vscode/
 ABO_imgs_6views/
+logs/
+misc/
 PointCloud_pt_zips/
 RenderedImage_perobj_zips/
 __pycache__/

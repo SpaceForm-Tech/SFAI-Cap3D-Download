@@ -26,6 +26,7 @@ def setup_logger(
     destination: str,
     log_to_stream: Optional[bool] = True,
     log_to_file: Optional[bool] = True,
+    log_destination: Optional[str] = "logs",
     debug_logging: Optional[bool] = False,
 ) -> logging.Logger:
     """
@@ -35,6 +36,7 @@ def setup_logger(
         destination (str): The destination path or filename prefix for log files.
         log_to_stream (Optional[bool]): Whether to log messages to the console (stream). Default is True.
         log_to_file (Optional[bool]): Whether to log messages to a file. Default is True.
+        log_destination (Optional[str]): The directory where log files will be saved. Default is "logs".
         debug_logging (Optional[bool]): Whether to enable debug logging. Default is False.
 
     Returns:
@@ -69,8 +71,14 @@ def setup_logger(
 
     # Log to file
     if log_to_file:
+        # Make logs directory
+        create_directory(destination=log_destination, is_directory=True)
+        create_directory(
+            destination=f"{log_destination}/{destination}", is_directory=False
+        )
+
         file_handler = logging.FileHandler(
-            f"{destination}-{datetime.now():%Y-%m-%dT%H:%M:%S}.log"
+            f"{log_destination}/{destination}-{datetime.now():%Y-%m-%dT%H:%M:%S}.log"
         )
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)

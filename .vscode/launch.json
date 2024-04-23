@@ -1,0 +1,44 @@
+{
+    "configurations": [
+        {
+            "name": "download",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "python": "python",
+            "args": [
+                "https://huggingface.co/datasets/tiange/Cap3D/resolve/main/misc/compressed_imgs_ABO.zip?download=true",
+                "misc/compressed_imgs_ABO.zip",
+                "--stream_log",
+                "--file_log",
+                "--unzip",
+                "--track_extraction",
+                "--chunk_size",
+                "8192",
+                "--max_retries",
+                "5",
+                "--retry_delay",
+                "5",
+                "--timeout",
+                "15"
+            ]
+        },
+        {
+            "name": "unzip",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "python": "python",
+            "args": [
+                "RenderedImage_perobj_zips/compressed_imgs_perobj_51.zip",
+                "RenderedImage_perobj_zips/compressed_imgs_perobj_51"
+            ]
+        },
+        {
+            "name": "Python Debugger: Python File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}"
+        }
+    ]
+}
