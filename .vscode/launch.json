@@ -9,8 +9,6 @@
             "args": [
                 "https://huggingface.co/datasets/tiange/Cap3D/resolve/main/misc/compressed_imgs_ABO.zip?download=true",
                 "misc/compressed_imgs_ABO.zip",
-                "--stream_log",
-                "--file_log",
                 "--unzip",
                 "--track_extraction",
                 "--chunk_size",
@@ -32,8 +30,6 @@
             "args": [
                 "https://huggingface.co/datasets/tiange/Cap3D/resolve/main/misc/compressed_imgs_ABO.zip?download=true",
                 "download/compressed_imgs_ABO.zip",
-                "--stream_log",
-                "--file_log",
                 "--unzip",
                 "--yaml_config_path",
                 "configs/logging.yaml",

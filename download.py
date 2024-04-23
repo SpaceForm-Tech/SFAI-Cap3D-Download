@@ -185,16 +185,6 @@ def main():
             help="Path to yaml_config_path for logger.",
         )
         parser.add_argument(
-            "--stream_log",
-            action="store_true",
-            help="Stream log outputs to console",
-        )
-        parser.add_argument(
-            "--file_log",
-            action="store_true",
-            help="Log outputs to file",
-        )
-        parser.add_argument(
             "--unzip",
             action="store_true",
             help="Unzip file after download",
@@ -226,8 +216,6 @@ def main():
         retry_delay: int = args.retry_delay
         timeout: int = args.timeout
         yaml_config_path = args.yaml_config_path
-        stream_log: bool = args.stream_log
-        file_log: bool = args.file_log
         unzip: bool = args.unzip
         track_extraction: bool = args.track_extraction
         max_recursion_depth: int = args.max_recursion_depth
@@ -237,12 +225,12 @@ def main():
 
         # Set up logging
         logger: logging.Logger = setup_logger(
-            destination=destination,
             yaml_config_path=yaml_config_path,
-            log_to_stream=stream_log,
-            log_to_file=file_log,
+            log_output_file_path=destination,
         )
-        print(logger.handlers)
+        assert (
+            logger.handlers
+        ), f"Log configuration failed to assign handlers (config: {yaml_config_path})"
 
         download_succeeded: bool = download_file_with_retry(
             logger=logger,

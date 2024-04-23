@@ -249,18 +249,6 @@ def main() -> None:
         default=False,
         help="Flag to toggle debug logging.",
     )
-    parser.add_argument(
-        "--stream_log",
-        type=bool,
-        default=True,
-        help="Stream log outputs to console",
-    )
-    parser.add_argument(
-        "--file_log",
-        type=bool,
-        default=True,
-        help="Log outputs to file",
-    )
 
     args = parser.parse_args()
 
@@ -270,15 +258,11 @@ def main() -> None:
     max_recursion_depth = args.max_recursion_depth
     yaml_config_path = args.yaml_config_path
     debug_logging = args.debug_logging
-    stream_log = args.stream_log
-    file_log = args.file_log
 
     # Set up logging
-    logger = setup_logger(
-        destination=zip_file,
+    logger: logging.Logger = setup_logger(
         yaml_config_path=yaml_config_path,
-        log_to_stream=stream_log,
-        log_to_file=file_log,
+        log_output_file_path=zip_file,
     )
 
     extract_zip_file_recursive(
