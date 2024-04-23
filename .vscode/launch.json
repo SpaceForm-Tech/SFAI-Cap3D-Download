@@ -28,8 +28,10 @@
             "program": "${file}",
             "python": "python",
             "args": [
-                "https://huggingface.co/datasets/tiange/Cap3D/resolve/main/misc/compressed_imgs_ABO.zip?download=true",
-                "download/compressed_imgs_ABO.zip",
+                // "https://huggingface.co/datasets/tiange/Cap3D/resolve/main/misc/compressed_imgs_ABO.zip?download=true",
+                // "download/compressed_imgs_ABO.zip",
+                "https://huggingface.co/datasets/tiange/Cap3D/resolve/main/RenderedImage_perobj_zips/compressed_imgs_perobj_39.zip?download=true",
+                "download/compressed_imgs_perobj_39.zip",
                 "--unzip",
                 "--yaml_config_path",
                 "configs/logging.yaml",
@@ -53,6 +55,17 @@
             "args": [
                 "RenderedImage_perobj_zips/compressed_imgs_perobj_51.zip",
                 "RenderedImage_perobj_zips/compressed_imgs_perobj_51"
+            ]
+        },
+        {
+            "name": "checksum",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "python": "python",
+            "args": [
+                "/mnt/data/3D/Cap3D/RenderedImage_perobj_zips/compressed_imgs_perobj_39.zip",
+                "https://huggingface.co/datasets/tiange/Cap3D/raw/main/RenderedImage_perobj_zips/compressed_imgs_perobj_39.zip"
             ]
         },
         {

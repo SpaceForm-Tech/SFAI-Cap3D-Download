@@ -4,6 +4,7 @@ logs/
 misc/
 PointCloud_pt_zips/
 RenderedImage_perobj_zips/
+download/
 __pycache__/
 blender-3.4.1-linux-x64/
 Cap3D_automated_Objaverse_allviews.pkl

@@ -181,7 +181,7 @@ def main():
         parser.add_argument(
             "--yaml_config_path",
             type=str,
-            default=None,
+            default="configs/logging.yaml",
             help="Path to yaml_config_path for logger.",
         )
         parser.add_argument(
