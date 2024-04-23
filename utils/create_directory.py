@@ -46,7 +46,7 @@ def create_directory(
             ],
         )
 
-        logger = logging.getLogger()  # Get the root logger
+        logger = logging.getLogger(__name__)  # Get the module logger
 
     try:
         absolute_path = os.path.abspath(destination)

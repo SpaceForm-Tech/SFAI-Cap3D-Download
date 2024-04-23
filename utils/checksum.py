@@ -93,7 +93,7 @@ def perform_checksum(
             ],
         )
 
-        logger = logging.getLogger()  # Get the root logger
+        logger = logging.getLogger(__name__)  # Get the module logger
 
     logger.info("Calculate file hash process started for file: '%s'", file_path)
     file_hash: str = calculate_file_hash(file_path=file_path)

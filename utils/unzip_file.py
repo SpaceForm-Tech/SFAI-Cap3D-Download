@@ -64,7 +64,7 @@ def extract_zip_file_recursive(
             ],
         )
 
-        logger = logging.getLogger()  # Get the root logger
+        logger = logging.getLogger(__name__)  # Get the module logger
 
     absolute_zip_file_path = os.path.abspath(zip_file)
     logger.log(
@@ -238,6 +238,12 @@ def main() -> None:
         help="Maximum number of recursions before raising an error.",
     )
     parser.add_argument(
+        "--yaml_config_path",
+        type=str,
+        default=None,
+        help="Path to yaml_config_path for logger.",
+    )
+    parser.add_argument(
         "--debug_logging",
         type=bool,
         default=False,
@@ -262,6 +268,7 @@ def main() -> None:
     extract_to = args.extract_to
     track_extraction = args.track_extraction
     max_recursion_depth = args.max_recursion_depth
+    yaml_config_path = args.yaml_config_path
     debug_logging = args.debug_logging
     stream_log = args.stream_log
     file_log = args.file_log
@@ -269,6 +276,7 @@ def main() -> None:
     # Set up logging
     logger = setup_logger(
         destination=zip_file,
+        yaml_config_path=yaml_config_path,
         log_to_stream=stream_log,
         log_to_file=file_log,
     )

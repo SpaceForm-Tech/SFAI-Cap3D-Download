@@ -24,6 +24,31 @@
             ]
         },
         {
+            "name": "download_yaml_log_config",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "python": "python",
+            "args": [
+                "https://huggingface.co/datasets/tiange/Cap3D/resolve/main/misc/compressed_imgs_ABO.zip?download=true",
+                "download/compressed_imgs_ABO.zip",
+                "--stream_log",
+                "--file_log",
+                "--unzip",
+                "--yaml_config_path",
+                "configs/logging.yaml",
+                "--track_extraction",
+                "--chunk_size",
+                "8192",
+                "--max_retries",
+                "5",
+                "--retry_delay",
+                "5",
+                "--timeout",
+                "15"
+            ]
+        },
+        {
             "name": "unzip",
             "type": "debugpy",
             "request": "launch",

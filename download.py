@@ -25,6 +25,7 @@ sys.path.append(os.getcwd())
 
 
 from utils.checksum import perform_checksum
+from utils.create_directory import create_directory
 from utils.logger_config import setup_logger
 from utils.unzip_file import extract_zip_file_recursive
 
@@ -66,6 +67,8 @@ def download_file_with_retry(
     if os.path.exists(destination):
         downloaded_bytes = os.path.getsize(destination)
         resume_header["Range"] = f"bytes={downloaded_bytes}-"
+
+    create_directory(destination=destination, logger=logger)
 
     while retry_count < max_retries:
         try:
@@ -176,6 +179,12 @@ def main():
             help="Maximum waiting time for server response in seconds",
         )
         parser.add_argument(
+            "--yaml_config_path",
+            type=str,
+            default=None,
+            help="Path to yaml_config_path for logger.",
+        )
+        parser.add_argument(
             "--stream_log",
             action="store_true",
             help="Stream log outputs to console",
@@ -216,6 +225,7 @@ def main():
         max_retries: int = args.max_retries
         retry_delay: int = args.retry_delay
         timeout: int = args.timeout
+        yaml_config_path = args.yaml_config_path
         stream_log: bool = args.stream_log
         file_log: bool = args.file_log
         unzip: bool = args.unzip
@@ -228,9 +238,11 @@ def main():
         # Set up logging
         logger: logging.Logger = setup_logger(
             destination=destination,
+            yaml_config_path=yaml_config_path,
             log_to_stream=stream_log,
             log_to_file=file_log,
         )
+        print(logger.handlers)
 
         download_succeeded: bool = download_file_with_retry(
             logger=logger,
