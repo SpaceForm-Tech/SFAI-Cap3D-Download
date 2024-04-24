@@ -29,12 +29,14 @@ from utils.create_directory import create_directory
 from utils.logger_config import setup_logger
 from utils.unzip_file import extract_zip_file_recursive
 
+MINIMUM_CHUNK_SIZE = 1024
+
 
 def download_file_with_retry(
     logger: logging.Logger,
     url: str,
     destination: str,
-    chunk_size: int = 1024,
+    chunk_size: int = MINIMUM_CHUNK_SIZE,
     max_retries: int = int(1e6),
     retry_delay: int = 60,
     timeout: int = 60,
@@ -218,15 +220,31 @@ def main():
         url: str = args.url
         destination: str = args.destination
         chunk_size: int = args.chunk_size
+        if chunk_size < MINIMUM_CHUNK_SIZE:
+            raise ValueError(
+                f"The download chunk size provided is too small. Received {chunk_size}, minimum is {MINIMUM_CHUNK_SIZE}"
+            )
         max_retries: int = args.max_retries
+        if max_retries < 0:
+            raise ValueError(
+                f"The maximum number of download retries cannot be negative. Received {max_retries}"
+            )
         retry_delay: int = args.retry_delay
+        if retry_delay < 0:
+            raise ValueError(
+                f"The retry delay cannot be negative. Received {retry_delay}"
+            )
         timeout: int = args.timeout
+        if timeout < 0:
+            raise ValueError(
+                f"The request timeout cannot be negative. Received {timeout}"
+            )
         yaml_config_path = args.yaml_config_path
         unzip: bool = args.unzip
         unzip_destination: str = args.unzip_destination
         track_extraction: bool = args.track_extraction
         max_recursion_depth: int = args.max_recursion_depth
-        debug_logging: int = args.debug_logging
+        debug_logging: bool = args.debug_logging
 
         pointer_file_url: str = url.replace("resolve", "raw").split("?")[0]
 
