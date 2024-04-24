@@ -9,3 +9,4 @@ blender-3.4.1-linux-x64/
 *.pkl
 *.zip
 *.ipynb
+*.csv
