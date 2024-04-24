@@ -1,4 +1,35 @@
-"""Utility functions for performing checksum operations."""
+"""
+Utility module for performing checksum operations and verifying (downloaded) files using SHA-256.
+
+This module provides several functions for calculating SHA-256 hashes, extracting them from pointer files, and performing checksum verification against a known expected value.
+
+Example:
+    To perform a checksum verification against a known pointer file:
+
+    ```bash
+    python checksum.py /path/to/file http://example.com/pointer_file_url
+    ```
+
+Functions:
+- sha256_hash(data: bytes) -> str:
+    Computes the SHA-256 hash of the given data and returns it as a hexadecimal string.
+
+- extract_sha256_from_pointer_file(bytes_data: bytes) -> Optional[str]:
+    Extracts the SHA-256 hash from a pointer file given as a byte stream.
+
+- calculate_file_hash(file_path: str, logger: logging.Logger) -> str:
+    Calculates the SHA-256 hash of a file at the specified path.
+
+- perform_checksum(
+    file_path: str,
+    pointer_file_url: str,
+    logger: Optional[logging.Logger] = None,
+) -> bool:
+    Performs a checksum verification of a file against a pointer file. Returns True if the checksum matches, False otherwise.
+
+- main():
+    Command-line interface for performing checksum operations. Parses command-line arguments and initiates checksum verification.
+"""
 
 import argparse
 import hashlib
@@ -10,7 +41,7 @@ from typing import List, Optional
 import requests
 
 
-def sha256_hash(data: bytes):
+def sha256_hash(data: bytes) -> str:
     """
     Compute the SHA-256 hash of the given data.
 
@@ -26,7 +57,7 @@ def sha256_hash(data: bytes):
     return sha256.hexdigest()
 
 
-def extract_sha256_from_pointer_file(bytes_data: bytes) -> str or None:
+def extract_sha256_from_pointer_file(bytes_data: bytes) -> Optional[str]:
     """
     Extract the SHA256 hash from a bytes string.
 
@@ -34,7 +65,7 @@ def extract_sha256_from_pointer_file(bytes_data: bytes) -> str or None:
         bytes_data (bytes): The bytes string containing the data.
 
     Returns:
-        str or None: The extracted SHA256 hash if found, otherwise None.
+        Optional[str]: The extracted SHA256 hash if found, otherwise None.
     """
     # Decode bytes to string
     data_str: str = bytes_data.decode("utf-8")
@@ -49,8 +80,7 @@ def extract_sha256_from_pointer_file(bytes_data: bytes) -> str or None:
 
     # Extract the SHA256 hash value
     if sha256_line:
-        file_hash: str = sha256_line.split("sha256:")[1]
-        return file_hash
+        return sha256_line.split("sha256:")[1]
 
 
 def calculate_file_hash(file_path: str, logger: logging.Logger) -> str:
@@ -103,7 +133,7 @@ def perform_checksum(
             ],
         )
 
-        logger = logging.getLogger(__name__)  # Get the module logger
+        logger = logging.getLogger()  # Get the root logger
 
     logger.info("Calculate file hash process started for file: '%s'", file_path)
     file_hash: str = calculate_file_hash(file_path=file_path, logger=logger)
@@ -155,7 +185,7 @@ def main():
             ],
         )
 
-        logger = logging.getLogger()  # Get the module logger
+        logger = logging.getLogger()  # Get the root logger
         print(f"handlers: {logger.handlers}")
         assert logger.handlers
 
@@ -165,7 +195,7 @@ def main():
             logger=logger,
         )
 
-        logger.info(f"checksum succeeded: {checksum_succeeded}")
+        logger.info("checksum succeeded: %s", checksum_succeeded)
 
     except KeyboardInterrupt:
         logger.warning("Keyboard interrupt received. Exiting gracefully.")

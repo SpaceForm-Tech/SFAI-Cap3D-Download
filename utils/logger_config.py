@@ -9,14 +9,16 @@ Example:
     To configure a logger to log to a file named 'mylog-2024-04-01.log' in the current directory 
     and also to the console:
     
-    >>> import logger_config
-    >>> logger = logger_config.setup_logger('path/to/logging.yaml', 'path/to/log_output.zip')
+    >>> from utils.logger_config import setup_logger
+    >>> yaml_config_path, log_output_file_path = 'path/to/logging.yaml', 'path/to/log_output.zip'
+    >>> logger = setup_logger(yaml_config_path=yaml_config_path, log_output_file_path=log_output_file_path)
+    >>> assert logger.handlers, f"Log configuration failed to assign handlers (config: {yaml_config_path})"
     >>> logger.info('This is a test log message')
-
 """
 
 import logging
 import logging.config
+from typing import Optional
 
 from utils.utils import load_yaml_config
 
@@ -25,20 +27,20 @@ DOWNLOAD_LOGGER = "download"
 
 def setup_logger(
     yaml_config_path: str,
-    log_output_file_path: str,
+    log_output_file_path: Optional[str] = None,
 ) -> logging.Logger:
     """
-    Set up a logger with specified path to output log file or load from a YAML configuration.
+    Set up a logger with a YAML configuration and an optional specified path to output log file.
 
     Args:
         yaml_config_path (str): The path to the yaml config file.
-        log_output_file_path (str): The relative path to the output log file.
+        log_output_file_path (Optional[str]): The relative path to the output log file.
 
     Returns:
         logging.Logger: The configured logger object.
 
     Raises:
-        ValueError: If neither stream logging nor file logging is enabled.
+        ValueError: If logging to file configured but no output file specified or neither stream logging nor file logging is enabled.
     """
     try:
         # Load logging configuration from the specified YAML file
@@ -48,6 +50,11 @@ def setup_logger(
 
         # Update the configuration with additional initialization parameters
         if "file" in config["handlers"]:
+            if not log_output_file_path:
+                raise ValueError(
+                    f"YAML configuration specifies logging to file but no log output file path provided. (YAML configuration path: {yaml_config_path})"
+                )
+
             file_handler_config = config["handlers"]["file"]
 
             if "init_kwargs" in file_handler_config:
@@ -61,9 +68,10 @@ def setup_logger(
                 config["handlers"]["file"]["log_directory"] = log_directory
 
         # Logger must contain either stream or file handler
-        assert (
-            stream_handler_config or file_handler_config
-        ), "Logger setup must setup at least one of stream logging and file logging"
+        if not (stream_handler_config or file_handler_config):
+            raise ValueError(
+                "Logger setup must setup at least one of stream logging and file logging"
+            )
 
         logging.config.dictConfig(config)
 

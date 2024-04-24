@@ -7,7 +7,7 @@ and a `main` function for handling command line arguments and starting the downl
 Usage:
     Run this module from the command line with appropriate arguments to download files with retry mechanism.
     Example:
-        python download.py http://example.com/file.zip ./output/file.zip --stream_log --file_log --unzip --track_extraction --chunk_size 8192 --max_retries 5 --retry_delay 30 --timeout 60
+        python download.py http://example.com/file.zip ./output/file.zip --unzip --track_extraction --chunk_size 8192 --max_retries 5 --retry_delay 30 --timeout 60
 """
 
 import argparse
@@ -187,7 +187,13 @@ def main():
         parser.add_argument(
             "--unzip",
             action="store_true",
-            help="Unzip file after download",
+            help="Unzip file after download.",
+        )
+        parser.add_argument(
+            "--unzip_destination",
+            type=str,
+            default="unzip",
+            help="Path to extract zip file to.",
         )
         parser.add_argument(
             "--track_extraction",
@@ -217,6 +223,7 @@ def main():
         timeout: int = args.timeout
         yaml_config_path = args.yaml_config_path
         unzip: bool = args.unzip
+        unzip_destination: str = args.unzip_destination
         track_extraction: bool = args.track_extraction
         max_recursion_depth: int = args.max_recursion_depth
         debug_logging: int = args.debug_logging
@@ -256,9 +263,14 @@ def main():
                 raise Exception("Checksum process failed for file: '%s'", destination)
 
             if unzip:
+                extract_to = os.path.join(
+                    unzip_destination,
+                    os.path.splitext(os.path.basename(destination))[0],
+                )  # os.path.basename(destination).replace(".zip", "")
+
                 extract_zip_file_recursive(
                     zip_file=destination,
-                    extract_to=destination.replace(".zip", ""),
+                    extract_to=extract_to,
                     current_recursion_depth=-1,
                     track_extraction=track_extraction,
                     max_recursion_depth=max_recursion_depth,
