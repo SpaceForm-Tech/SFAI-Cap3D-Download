@@ -15,7 +15,7 @@ The main module provided by this repo is [download.py](download.py). This module
 Run this module from the command line with appropriate arguments to download files with retry mechanism.
 Example:
 ```bash
-python download.py http://example.com/file.zip ./output/file.zip --stream_log --file_log --unzip --track_extraction --chunk_size 8192 --max_retries 5 --retry_delay 30 --timeout 60
+python download.py http://example.com/file.zip ./output/file.zip --unzip --track_extraction --chunk_size 8192 --max_retries 5 --retry_delay 30 --timeout 60
 ```
 ### [utils](utils)
 #### [checksum.py](utils/checksum.py)
