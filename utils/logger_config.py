@@ -1,7 +1,7 @@
 """
-Module for configuring a logger with specified destination.
+Module for configuring a logger with specified log_output_file_path.
 
-This module provides a function `setup_logger` to set up a logger with the specified destination.
+This module provides a function `setup_logger` to set up a logger with the specified log_output_file_path.
 The logger is configured to log messages to both a file with a name based on the current date 
 and a stream (console).
 
@@ -9,78 +9,74 @@ Example:
     To configure a logger to log to a file named 'mylog-2024-04-01.log' in the current directory 
     and also to the console:
     
-    >>> import logger_config
-    >>> logger = logger_config.setup_logger('mylog')
+    >>> from utils.logger_config import setup_logger
+    >>> yaml_config_path, log_output_file_path = 'path/to/logging.yaml', 'path/to/log_output.zip'
+    >>> logger = setup_logger(yaml_config_path=yaml_config_path, log_output_file_path=log_output_file_path)
+    >>> assert logger.handlers, f"Log configuration failed to assign handlers (config: {yaml_config_path})"
     >>> logger.info('This is a test log message')
-
 """
 
 import logging
-from datetime import datetime
+import logging.config
 from typing import Optional
 
-from .create_directory import create_directory
+from utils.utils import load_yaml_config
+
+DOWNLOAD_LOGGER = "download"
 
 
 def setup_logger(
-    destination: str,
-    log_to_stream: Optional[bool] = True,
-    log_to_file: Optional[bool] = True,
-    log_destination: Optional[str] = "logs",
-    debug_logging: Optional[bool] = False,
+    yaml_config_path: str,
+    log_output_file_path: Optional[str] = None,
 ) -> logging.Logger:
     """
-    Set up a logger with specified destination.
+    Set up a logger with a YAML configuration and an optional specified path to output log file.
 
     Args:
-        destination (str): The destination path or filename prefix for log files.
-        log_to_stream (Optional[bool]): Whether to log messages to the console (stream). Default is True.
-        log_to_file (Optional[bool]): Whether to log messages to a file. Default is True.
-        log_destination (Optional[str]): The directory where log files will be saved. Default is "logs".
-        debug_logging (Optional[bool]): Whether to enable debug logging. Default is False.
+        yaml_config_path (str): The path to the yaml config file.
+        log_output_file_path (Optional[str]): The relative path to the output log file.
 
     Returns:
         logging.Logger: The configured logger object.
 
     Raises:
-        ValueError: If neither stream logging nor file logging is enabled.
+        ValueError: If logging to file configured but no output file specified or neither stream logging nor file logging is enabled.
     """
-    if not log_to_stream and not log_to_file:
-        raise ValueError(
-            "Logger setup must setup at least one of stream logging and file logging"
-        )
+    try:
+        # Load logging configuration from the specified YAML file
+        config = load_yaml_config(yaml_config_path)
 
-    create_directory(destination)
+        stream_handler_config = config["handlers"]["console"]
 
-    # Create a new logger with the 'destination' argument as the name
-    logger = logging.getLogger(destination)
-    logger.setLevel(logging.DEBUG if debug_logging else logging.INFO)
+        # Update the configuration with additional initialization parameters
+        if "file" in config["handlers"]:
+            if not log_output_file_path:
+                raise ValueError(
+                    f"YAML configuration specifies logging to file but no log output file path provided. (YAML configuration path: {yaml_config_path})"
+                )
 
-    # Prevent propagation of log messages to parent loggers
-    logger.propagate = False
+            file_handler_config = config["handlers"]["file"]
 
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+            if "init_kwargs" in file_handler_config:
+                # Adjust the args to unpack the dictionary instead
+                init_kwargs = file_handler_config.pop("init_kwargs")
+                log_directory = init_kwargs["log_directory"]
+                assert (
+                    log_directory
+                ), f"No log_directory found in yaml config ({yaml_config_path})"
+                log_directory += "/" + log_output_file_path
+                config["handlers"]["file"]["log_directory"] = log_directory
 
-    # Log to console (stream)
-    if log_to_stream and not any(
-        isinstance(handler, logging.StreamHandler) for handler in logger.handlers
-    ):
-        stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
+        # Logger must contain either stream or file handler
+        if not (stream_handler_config or file_handler_config):
+            raise ValueError(
+                "Logger setup must setup at least one of stream logging and file logging"
+            )
 
-    # Log to file
-    if log_to_file:
-        # Make logs directory
-        create_directory(destination=log_destination, is_directory=True)
-        create_directory(
-            destination=f"{log_destination}/{destination}", is_directory=False
-        )
+        logging.config.dictConfig(config)
 
-        file_handler = logging.FileHandler(
-            f"{log_destination}/{destination}-{datetime.now():%Y-%m-%dT%H:%M:%S}.log"
-        )
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        return logging.getLogger(DOWNLOAD_LOGGER)
 
-    return logger
+    except Exception as e:
+        print(f"Error setting up logger. (Error: {e}.)")
+        raise e

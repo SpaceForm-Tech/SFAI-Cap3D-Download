@@ -1,30 +1,56 @@
 """
-Module for unzipping files.
+Module for unzipping files and handling nested zip files.
 
-This module provides functionality to unzip files. It includes a function `unzip_file` that takes a zip file path
-and an extraction destination path as input, and extracts the contents of the zip file to the specified destination.
+This module provides functionality for unzipping files. It includes the `extract_zip_file_recursive` function
+that extracts a given zip file and, if necessary, recursively extracts nested zip files to a specified destination.
 
-Example:
+The module includes progress tracking and optional debug logging. It supports concurrent extraction for nested zip files
+and offers various command-line arguments to configure its behavior.
+
+Example Usage:
     To unzip a file named 'example.zip' to the directory 'output':
     
-    $ python unzip.py example.zip output
+    ```bash
+    python unzip_file.py example.zip output
+    ```
+
+Attributes:
+- None
+
+Functions:
+- extract_zip_file_recursive(
+    zip_file: str,
+    extract_to: str,
+    current_recursion_depth: int,
+    track_extraction: Optional[bool] = False,
+    max_recursion_depth: Optional[int] = 1,
+    logger: Optional[logging.Logger] = None,
+    debug_logging: Optional[bool] = False,
+):
+    Recursively extracts the zip file and any nested zip files to a specified destination.
+
+- main():
+    Entry point for command-line usage. Parses arguments and initiates zip extraction.
 
 TODO:
-    - Implement already extracted logic (see commented code)
+    - Implement logic to skip files that are already extracted.
 """
 
 import argparse
 import concurrent.futures
 import logging
 import os
+import sys
 import zipfile
 from typing import Optional
 
 from tqdm import tqdm
 
-from utils.create_directory import create_directory
+# Ensure the script knows the parent package
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from .logger_config import setup_logger
+from utils.create_directory import create_directory
+from utils.logger_config import setup_logger
 
 
 def extract_zip_file_recursive(
@@ -77,13 +103,12 @@ def extract_zip_file_recursive(
     if not os.path.exists(absolute_zip_file_path):
         raise FileNotFoundError(f"Zip file not found: '{absolute_zip_file_path}'")
 
-    directory_created = create_directory(
+    _ = create_directory(
         destination=extract_to,
         is_directory=True,
         logger=logger,
         debug_logging=debug_logging,
     )
-    # already_extracted = False if current_recursion_depth < 1 else not directory_created
 
     absolute_extract_to_path = os.path.abspath(extract_to)
     try:
@@ -106,7 +131,6 @@ def extract_zip_file_recursive(
 
                         pbar.update(1)
 
-                        # if not already_extracted:
                         extract(
                             zip_ref=zip_ref,
                             file_info=file_info,
@@ -123,7 +147,6 @@ def extract_zip_file_recursive(
 
             else:
                 for file_info in zip_ref.infolist():
-                    # if not already_extracted:
                     extract(
                         zip_ref=zip_ref,
                         file_info=file_info,
@@ -213,7 +236,7 @@ def main() -> None:
     """
     Example usage:
     ```bash
-    python utils/unzip_file.py RenderedImage_perobj_zips/compressed_imgs_perobj_00.zip RenderedImage_perobj_zips/compressed_imgs_perobj_00
+    python utils/unzip_file.py path/to/compressed_imgs_perobj_00.zip path/to/compressed_imgs_perobj_00
     ```
     """
     parser = argparse.ArgumentParser(
@@ -238,22 +261,16 @@ def main() -> None:
         help="Maximum number of recursions before raising an error.",
     )
     parser.add_argument(
+        "--yaml_config_path",
+        type=str,
+        default="./configs/logging.yaml",
+        help="Path to yaml_config_path for logger.",
+    )
+    parser.add_argument(
         "--debug_logging",
         type=bool,
         default=False,
         help="Flag to toggle debug logging.",
-    )
-    parser.add_argument(
-        "--stream_log",
-        type=bool,
-        default=True,
-        help="Stream log outputs to console",
-    )
-    parser.add_argument(
-        "--file_log",
-        type=bool,
-        default=True,
-        help="Log outputs to file",
     )
 
     args = parser.parse_args()
@@ -262,15 +279,13 @@ def main() -> None:
     extract_to = args.extract_to
     track_extraction = args.track_extraction
     max_recursion_depth = args.max_recursion_depth
+    yaml_config_path = args.yaml_config_path
     debug_logging = args.debug_logging
-    stream_log = args.stream_log
-    file_log = args.file_log
 
     # Set up logging
-    logger = setup_logger(
-        destination=zip_file,
-        log_to_stream=stream_log,
-        log_to_file=file_log,
+    logger: logging.Logger = setup_logger(
+        yaml_config_path=yaml_config_path,
+        log_output_file_path=zip_file,
     )
 
     extract_zip_file_recursive(

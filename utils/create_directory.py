@@ -8,7 +8,6 @@ Example:
     To create a directory for a file named 'output/myfile.txt':
     
     $ python create_directory.py output/myfile.txt
-
 """
 
 import argparse
@@ -52,7 +51,8 @@ def create_directory(
         absolute_path = os.path.abspath(destination)
         logger.log(
             logging.DEBUG if debug_logging else logging.INFO,
-            "Creating directory for file process started with file: '%s'",
+            "Creating directory for %s process started with: '%s'",
+            "directory" if is_directory else "file",
             absolute_path,
         )
 
@@ -69,13 +69,17 @@ def create_directory(
 
         logger.log(
             logging.DEBUG if debug_logging else logging.INFO,
-            "Creating directory for file process successfuly completed with file: '%s'",
+            "Creating directory for %s process successfuly completed with file: '%s'",
+            "directory" if is_directory else "file",
             absolute_path,
         )
 
     except Exception as e:
         logger.exception(
-            "Error while creating directory for file '%s': %s", absolute_path, str(e)
+            "Error while creating directory for %s '%s': %s",
+            "directory" if is_directory else "file",
+            absolute_path,
+            str(e),
         )
         raise
 
@@ -90,15 +94,27 @@ def main() -> None:
         "destination", type=str, help="Path to file to create directory for."
     )
     parser.add_argument(
-        "--debug_logging",
+        "is_directory",
         type=bool,
-        default=False,
+        default=True,
+        help="Flag to symbolise if path is a directory.",
+    )
+    parser.add_argument(
+        "--debug_logging",
+        action="store_true",
         help="Flag to toggle debug logging.",
     )
 
     args = parser.parse_args()
+    destination = args.destination
+    is_directory = args.is_directory
+    debug_logging = args.debug_logging
 
-    directory_created = create_directory(args.destination, args.debug_logging)
+    directory_created = create_directory(
+        destination=destination,
+        is_directory=is_directory,
+        debug_logging=debug_logging,
+    )
     print(f"Directory created: {directory_created}")
 
 

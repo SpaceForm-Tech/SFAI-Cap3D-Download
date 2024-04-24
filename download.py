@@ -7,7 +7,7 @@ and a `main` function for handling command line arguments and starting the downl
 Usage:
     Run this module from the command line with appropriate arguments to download files with retry mechanism.
     Example:
-        python download.py http://example.com/file.zip ./output/file.zip --stream_log --file_log --unzip --track_extraction --chunk_size 8192 --max_retries 5 --retry_delay 30 --timeout 60
+        python download.py http://example.com/file.zip ./output/file.zip --unzip --track_extraction --chunk_size 8192 --max_retries 5 --retry_delay 30 --timeout 60
 """
 
 import argparse
@@ -25,15 +25,18 @@ sys.path.append(os.getcwd())
 
 
 from utils.checksum import perform_checksum
+from utils.create_directory import create_directory
 from utils.logger_config import setup_logger
 from utils.unzip_file import extract_zip_file_recursive
+
+MINIMUM_CHUNK_SIZE = 1024
 
 
 def download_file_with_retry(
     logger: logging.Logger,
     url: str,
     destination: str,
-    chunk_size: int = 1024,
+    chunk_size: int = MINIMUM_CHUNK_SIZE,
     max_retries: int = int(1e6),
     retry_delay: int = 60,
     timeout: int = 60,
@@ -66,6 +69,8 @@ def download_file_with_retry(
     if os.path.exists(destination):
         downloaded_bytes = os.path.getsize(destination)
         resume_header["Range"] = f"bytes={downloaded_bytes}-"
+
+    create_directory(destination=destination, logger=logger)
 
     while retry_count < max_retries:
         try:
@@ -176,19 +181,21 @@ def main():
             help="Maximum waiting time for server response in seconds",
         )
         parser.add_argument(
-            "--stream_log",
-            action="store_true",
-            help="Stream log outputs to console",
-        )
-        parser.add_argument(
-            "--file_log",
-            action="store_true",
-            help="Log outputs to file",
+            "--yaml_config_path",
+            type=str,
+            default="configs/logging.yaml",
+            help="Path to yaml_config_path for logger.",
         )
         parser.add_argument(
             "--unzip",
             action="store_true",
-            help="Unzip file after download",
+            help="Unzip file after download.",
+        )
+        parser.add_argument(
+            "--unzip_destination",
+            type=str,
+            default="unzip",
+            help="Path to extract zip file to.",
         )
         parser.add_argument(
             "--track_extraction",
@@ -213,24 +220,42 @@ def main():
         url: str = args.url
         destination: str = args.destination
         chunk_size: int = args.chunk_size
+        if chunk_size < MINIMUM_CHUNK_SIZE:
+            raise ValueError(
+                f"The download chunk size provided is too small. Received {chunk_size}, minimum is {MINIMUM_CHUNK_SIZE}"
+            )
         max_retries: int = args.max_retries
+        if max_retries < 0:
+            raise ValueError(
+                f"The maximum number of download retries cannot be negative. Received {max_retries}"
+            )
         retry_delay: int = args.retry_delay
+        if retry_delay < 0:
+            raise ValueError(
+                f"The retry delay cannot be negative. Received {retry_delay}"
+            )
         timeout: int = args.timeout
-        stream_log: bool = args.stream_log
-        file_log: bool = args.file_log
+        if timeout < 0:
+            raise ValueError(
+                f"The request timeout cannot be negative. Received {timeout}"
+            )
+        yaml_config_path = args.yaml_config_path
         unzip: bool = args.unzip
+        unzip_destination: str = args.unzip_destination
         track_extraction: bool = args.track_extraction
         max_recursion_depth: int = args.max_recursion_depth
-        debug_logging: int = args.debug_logging
+        debug_logging: bool = args.debug_logging
 
         pointer_file_url: str = url.replace("resolve", "raw").split("?")[0]
 
         # Set up logging
         logger: logging.Logger = setup_logger(
-            destination=destination,
-            log_to_stream=stream_log,
-            log_to_file=file_log,
+            yaml_config_path=yaml_config_path,
+            log_output_file_path=destination,
         )
+        assert (
+            logger.handlers
+        ), f"Log configuration failed to assign handlers (config: {yaml_config_path})"
 
         download_succeeded: bool = download_file_with_retry(
             logger=logger,
@@ -256,9 +281,14 @@ def main():
                 raise Exception("Checksum process failed for file: '%s'", destination)
 
             if unzip:
+                extract_to = os.path.join(
+                    unzip_destination,
+                    os.path.splitext(os.path.basename(destination))[0],
+                )  # os.path.basename(destination).replace(".zip", "")
+
                 extract_zip_file_recursive(
                     zip_file=destination,
-                    extract_to=destination.replace(".zip", ""),
+                    extract_to=extract_to,
                     current_recursion_depth=-1,
                     track_extraction=track_extraction,
                     max_recursion_depth=max_recursion_depth,
