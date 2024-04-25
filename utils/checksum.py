@@ -57,7 +57,7 @@ def sha256_hash(data: bytes) -> str:
     return sha256.hexdigest()
 
 
-def extract_sha256_from_pointer_file(bytes_data: bytes) -> Optional[str]:
+def extract_sha256_from_pointer_file(bytes_data: bytes) -> str or None:
     """
     Extract the SHA256 hash from a bytes string.
 
@@ -65,7 +65,7 @@ def extract_sha256_from_pointer_file(bytes_data: bytes) -> Optional[str]:
         bytes_data (bytes): The bytes string containing the data.
 
     Returns:
-        Optional[str]: The extracted SHA256 hash if found, otherwise None.
+        str or None: The extracted SHA256 hash if found, otherwise None.
     """
     # Decode bytes to string
     data_str: str = bytes_data.decode("utf-8")
@@ -74,8 +74,8 @@ def extract_sha256_from_pointer_file(bytes_data: bytes) -> Optional[str]:
     lines: List[str] = data_str.split("\n")
 
     # Find the line containing the SHA256 hash
-    sha256_line: str = next(
-        (line for line in lines if line.startswith("oid sha256:")), None
+    sha256_line: str or None = next(
+        (line for line in lines if line.lower().startswith("oid sha256:")), None
     )
 
     # Extract the SHA256 hash value
@@ -151,7 +151,9 @@ def perform_checksum(
     pointer_file: bytes = response.content
 
     logger.info("Extracting expected file hash from pointer file process started")
-    expected_hash: str = extract_sha256_from_pointer_file(bytes_data=pointer_file)
+    expected_hash: str or None = extract_sha256_from_pointer_file(
+        bytes_data=pointer_file
+    )
     logger.info(
         "Extracting expected file hash from pointer file process successfully completed (pointer file hash: '%s')",
         expected_hash,

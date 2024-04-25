@@ -56,7 +56,7 @@ python utils/utils.py
 ## Setup
 Create the conda environment:
 ```bash
-conda env create -f environment.yaml
+conda env create
 ```
 
 Activate the environment:
